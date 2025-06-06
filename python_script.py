@@ -2,6 +2,8 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from collections import defaultdict
+import argparse
+# from gooey import Gooey, GooeyParser  # GUI option (commented out)
 
 def extract_info(filename):
     match = re.search(r'_iconica_SP_([^_]+)_(\w+)\.vstsound', filename)
@@ -44,42 +46,65 @@ def generate_expression_map(instrument, entries, map_type="directional", base_no
 
     return ET.tostring(root, encoding="unicode", method="xml")
 
-def main(vstsound_folder):
+# @Gooey(program_name="Iconica SP Script Generator")  # Uncomment for GUI
+def main():
+    parser = argparse.ArgumentParser(description="Generate HALion Lua scripts and Cubase expression maps from Iconica SP VSTSound files.")
+    
+    parser.add_argument(
+        "-i", "--input", 
+        type=str, 
+        required=True, 
+        help="Path to folder containing Iconica SP .vstsound files"
+    )
+    parser.add_argument(
+        "-o", "--output", 
+        type=str, 
+        default="output", 
+        help="Output folder to save generated Lua and expression map files"
+    )
+    
+    args = parser.parse_args()
+    input_folder = args.input
+    output_folder = args.output
+
+    if not os.path.isdir(input_folder):
+        print(f"❌ Error: Input folder '{input_folder}' does not exist.")
+        return
+
+    os.makedirs(output_folder, exist_ok=True)
+
     instruments = defaultdict(list)
 
-    # Parse and group files
-    for fname in os.listdir(vstsound_folder):
+    # Parse and group valid Iconica SP files
+    for fname in os.listdir(input_folder):
         if fname.endswith(".vstsound"):
             inst, artic = extract_info(fname)
             if inst and artic:
                 instruments[inst].append((artic, fname))
 
     if not instruments:
-        print("No valid VSTSound files found.")
+        print("⚠️ No valid Iconica SP VSTSound files found.")
         return
 
     for instrument, entries in instruments.items():
-        # Sort articulations for consistency
         entries.sort(key=lambda x: x[0])
 
         # Generate Lua script
         lua_script = generate_lua_script(instrument, entries)
-        with open(f"{instrument}.lua", "w") as f:
+        with open(os.path.join(output_folder, f"{instrument}.lua"), "w") as f:
             f.write(lua_script)
 
         # Expression maps
         expr_map_dir = generate_expression_map(instrument, entries, map_type="directional")
         expr_map_attr = generate_expression_map(instrument, entries, map_type="attribute")
 
-        with open(f"{instrument}_directional.expressionmap", "w", encoding="utf-8") as f:
+        with open(os.path.join(output_folder, f"{instrument}_directional.expressionmap"), "w", encoding="utf-8") as f:
             f.write(expr_map_dir)
 
-        with open(f"{instrument}_attribute.expressionmap", "w", encoding="utf-8") as f:
+        with open(os.path.join(output_folder, f"{instrument}_attribute.expressionmap"), "w", encoding="utf-8") as f:
             f.write(expr_map_attr)
 
-    print("✅ All instrument scripts and expression maps generated!")
+    print(f"✅ Done! Files saved to: {os.path.abspath(output_folder)}")
 
-# Usage
 if __name__ == "__main__":
-    folder_path = "path_to_your_vstsound_folder"  # Replace this with your actual folder path
-    main(folder_path)
+    main()
