@@ -2,16 +2,17 @@ import os
 import re
 import requests
 import argparse
+# from gooey import Gooey, GooeyParser  # Uncomment if you want GUI
 
-# === YOUR TMDB CREDENTIALS HERE ===
-TMDB_API_KEY = "your_tmdb_api_key"  # v3 API key
-TMDB_BEARER_TOKEN = "your_tmdb_bearer_token"  # v4 Bearer token
+# === YOUR TMDB CREDENTIALS ===
+TMDB_API_KEY = "your_tmdb_api_key"  # ← Replace with your TMDb v3 API Key
+TMDB_BEARER_TOKEN = "your_tmdb_bearer_token"  # ← Replace with your TMDb v4 Bearer Token
 
-# === TMDb ENDPOINTS ===
+# === TMDb API ENDPOINTS ===
 TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
 TMDB_LISTS_URL = "https://api.themoviedb.org/4/list"
 
-# === Extract movie name and year ===
+# === PARSE MOVIE FILENAME (e.g., the_dark_knight.2008.mp4) ===
 def parse_filename(filename):
     match = re.match(r"(.+?)\.(\d{4})\.(mp4|mkv|avi|mov)$", filename, re.IGNORECASE)
     if match:
@@ -20,7 +21,7 @@ def parse_filename(filename):
         return name, year
     return None, None
 
-# === Search TMDb for movie ===
+# === SEARCH TMDB FOR MOVIE ===
 def search_movie(title, year):
     params = {
         "api_key": TMDB_API_KEY,
@@ -29,10 +30,10 @@ def search_movie(title, year):
     }
     response = requests.get(TMDB_SEARCH_URL, params=params)
     if response.status_code == 200 and response.json()["results"]:
-        return response.json()["results"][0]  # Best match
+        return response.json()["results"][0]
     return None
 
-# === Create a new TMDb List ===
+# === CREATE TMDB LIST ===
 def create_tmdb_list(name, description="Auto-generated movie list"):
     headers = {
         "Authorization": f"Bearer {TMDB_BEARER_TOKEN}",
@@ -51,7 +52,7 @@ def create_tmdb_list(name, description="Auto-generated movie list"):
         print("❌ Failed to create list:", response.text)
         return None
 
-# === Add movie to TMDb List ===
+# === ADD MOVIE TO TMDB LIST ===
 def add_movie_to_list(list_id, movie_id):
     headers = {
         "Authorization": f"Bearer {TMDB_BEARER_TOKEN}",
@@ -68,8 +69,8 @@ def add_movie_to_list(list_id, movie_id):
         print("❌ Failed to add movie:", response.text)
         return False
 
-# === Main Script ===
-def main(folder_path, list_name):
+# === MAIN MOVIE SCANNING AND UPLOAD FUNCTION ===
+def process_movies(folder_path, list_name):
     movies = []
     for file in os.listdir(folder_path):
         if file.lower().endswith((".mp4", ".mkv", ".avi", ".mov")):
@@ -100,14 +101,27 @@ def main(folder_path, list_name):
         else:
             print(f"⚠️ Failed to add {movie['title']}.")
 
-    print(f"\n✅ Done! You can view your list here: https://www.themoviedb.org/list/{list_id}")
+    print(f"\n✅ Done! View your list: https://www.themoviedb.org/list/{list_id}")
 
-# === CLI Entry Point ===
-if __name__ == "__main__":
+# === ARGPARSE / GOOEY ENTRY ===
+
+# @Gooey(program_name="TMDb Movie List Uploader")  # Uncomment to use GUI
+def main():
     parser = argparse.ArgumentParser(description="Upload local movie files to a TMDb list.")
-    parser.add_argument("-f", "--folder", required=True, help="Folder containing movie files")
-    parser.add_argument("-n", "--name", required=True, help="Name of the TMDb list to create")
+    parser.add_argument(
+        "-f", "--folder", 
+        required=True, 
+        help="Folder containing your local movie files (e.g., *.mp4)"
+    )
+    parser.add_argument(
+        "-n", "--name", 
+        required=True, 
+        help="Name of the TMDb list to create"
+    )
     args = parser.parse_args()
 
-    main(args.folder, args.name)
+    process_movies(args.folder, args.name)
 
+# === RUN ===
+if __name__ == "__main__":
+    main()
