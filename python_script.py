@@ -21,6 +21,15 @@ ARTICULATION_CATEGORY = {
     "Rip": "FX", "Cluster": "FX", "FX": "FX", "Glissando": "FX", "Fall": "FX"
 }
 
+CATEGORY_COLORS = {
+    "Long": "0,0,255",       # Blue
+    "Short": "0,128,0",      # Green
+    "Ornament": "255,165,0", # Orange
+    "Accent": "128,0,128",   # Purple
+    "FX": "255,0,0",         # Red
+    "Unknown": "128,128,128" # Gray
+}
+
 def articulation_sort_key(artic_name):
     try:
         return (0, PREFERRED_ORDER.index(artic_name))
@@ -58,7 +67,6 @@ def generate_expression_map(instrument, entries, map_type="directional", base_no
     root = ET.Element("expressionmap")
     ET.SubElement(root, "name").text = f"{instrument} Expression Map ({map_type.capitalize()})"
 
-    # Sort by musical logic
     entries.sort(key=lambda x: articulation_sort_key(x[0]))
 
     for idx, (artic, filename) in enumerate(entries):
@@ -70,11 +78,15 @@ def generate_expression_map(instrument, entries, map_type="directional", base_no
         ET.SubElement(slot, "data2").text = "127"
         ET.SubElement(slot, "channel").text = "1"
 
-        # Add <technique> for category (optional metadata)
+        # Technique and Color
         category = ARTICULATION_CATEGORY.get(artic, "Unknown")
+        color = CATEGORY_COLORS.get(category, CATEGORY_COLORS["Unknown"])
+
         ET.SubElement(slot, "technique").text = category
+        ET.SubElement(slot, "color").text = color  # RGB color tag
 
     return ET.tostring(root, encoding="unicode", method="xml")
+
 
 # @Gooey(program_name="Iconica SP Script Generator")  # Uncomment for GUI
 def main():
