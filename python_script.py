@@ -5,6 +5,28 @@ from collections import defaultdict
 import argparse
 # from gooey import Gooey, GooeyParser  # GUI option (commented out)
 
+PREFERRED_ORDER = [
+    "Legato", "Sustain", "Marcato", "Accent",
+    "Tremolo", "Trill", "Flutter",
+    "Pizzicato", "Staccato", "Spiccato", "Tenuto", "Portato",
+    "Sfz", "Sffz",
+    "Rip", "Cluster", "FX", "Glissando", "Fall"
+]
+
+ARTICULATION_CATEGORY = {
+    "Legato": "Long", "Sustain": "Long", "Marcato": "Long", "Accent": "Long",
+    "Tremolo": "Long", "Trill": "Ornament", "Flutter": "Ornament",
+    "Pizzicato": "Short", "Staccato": "Short", "Spiccato": "Short", "Tenuto": "Short", "Portato": "Short",
+    "Sfz": "Accent", "Sffz": "Accent",
+    "Rip": "FX", "Cluster": "FX", "FX": "FX", "Glissando": "FX", "Fall": "FX"
+}
+
+def articulation_sort_key(artic_name):
+    try:
+        return (0, PREFERRED_ORDER.index(artic_name))
+    except ValueError:
+        return (1, artic_name.lower())  # Unlisted articulations go last
+
 def extract_info(filename):
     match = re.search(r'_iconica_SP_([^_]+)_(\w+)\.vstsound', filename)
     if match:
@@ -31,9 +53,13 @@ def generate_lua_script(instrument, entries):
     lua_lines.append('end')
     return "\n".join(lua_lines)
 
+
 def generate_expression_map(instrument, entries, map_type="directional", base_note=0):
     root = ET.Element("expressionmap")
     ET.SubElement(root, "name").text = f"{instrument} Expression Map ({map_type.capitalize()})"
+
+    # Sort by musical logic
+    entries.sort(key=lambda x: articulation_sort_key(x[0]))
 
     for idx, (artic, filename) in enumerate(entries):
         slot = ET.SubElement(root, "slot")
@@ -43,6 +69,10 @@ def generate_expression_map(instrument, entries, map_type="directional", base_no
         ET.SubElement(slot, "data1").text = str(base_note + idx)
         ET.SubElement(slot, "data2").text = "127"
         ET.SubElement(slot, "channel").text = "1"
+
+        # Add <technique> for category (optional metadata)
+        category = ARTICULATION_CATEGORY.get(artic, "Unknown")
+        ET.SubElement(slot, "technique").text = category
 
     return ET.tostring(root, encoding="unicode", method="xml")
 
