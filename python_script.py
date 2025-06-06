@@ -1,6 +1,7 @@
 import os
 import re
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 
 def extract_info(filename):
     match = re.search(r'_iconica_SP_([^_]+)_(\w+)\.vstsound', filename)
@@ -8,16 +9,16 @@ def extract_info(filename):
         return match.group(1), match.group(2)
     return None, None
 
-def generate_lua_script(entries):
+def generate_lua_script(instrument, entries):
     lua_lines = [
-        '-- HALion 7 Multi-layer Instrument Auto-Generated Script',
+        f'-- HALion 7 Script for {instrument}',
         'defineInstrument = function()',
         '  local instrument = this.program',
     ]
-    
-    for idx, (inst, artic, filename) in enumerate(entries):
+
+    for idx, (artic, filename) in enumerate(entries):
         midi_channel = idx + 1
-        keyswitch_note = idx  # Starting from C-2 which is MIDI note 0
+        keyswitch_note = idx  # Starting from MIDI 0 = C-2
         lua_lines.extend([
             f'  local layer_{idx} = loadLayer("{filename}")',
             f'  layer_{idx}.name = "{artic}"',
@@ -26,23 +27,17 @@ def generate_lua_script(entries):
             f'  instrument:appendLayer(layer_{idx})',
         ])
     lua_lines.append('end')
-
     return "\n".join(lua_lines)
 
-def midi_note_name(note_number):
-    notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    octave = (note_number // 12) - 2
-    return f"{notes[note_number % 12]}{octave}"
-
-def generate_expression_map(entries, base_note=0):
+def generate_expression_map(instrument, entries, map_type="directional", base_note=0):
     root = ET.Element("expressionmap")
-    ET.SubElement(root, "name").text = f"{entries[0][0]} Expression Map"
+    ET.SubElement(root, "name").text = f"{instrument} Expression Map ({map_type.capitalize()})"
 
-    for idx, (inst, artic, filename) in enumerate(entries):
+    for idx, (artic, filename) in enumerate(entries):
         slot = ET.SubElement(root, "slot")
         ET.SubElement(slot, "name").text = artic
         ET.SubElement(slot, "status").text = "1"
-        ET.SubElement(slot, "type").text = "noteon"
+        ET.SubElement(slot, "type").text = "2" if map_type == "directional" else "1"
         ET.SubElement(slot, "data1").text = str(base_note + idx)
         ET.SubElement(slot, "data2").text = "127"
         ET.SubElement(slot, "channel").text = "1"
@@ -50,31 +45,41 @@ def generate_expression_map(entries, base_note=0):
     return ET.tostring(root, encoding="unicode", method="xml")
 
 def main(vstsound_folder):
-    entries = []
+    instruments = defaultdict(list)
+
+    # Parse and group files
     for fname in os.listdir(vstsound_folder):
         if fname.endswith(".vstsound"):
             inst, artic = extract_info(fname)
             if inst and artic:
-                entries.append((inst, artic, fname))
+                instruments[inst].append((artic, fname))
 
-    if not entries:
-        print("No valid files found.")
+    if not instruments:
+        print("No valid VSTSound files found.")
         return
 
-    # Generate LUA script
-    lua_script = generate_lua_script(entries)
-    with open("generated_instrument.lua", "w") as f:
-        f.write(lua_script)
+    for instrument, entries in instruments.items():
+        # Sort articulations for consistency
+        entries.sort(key=lambda x: x[0])
 
-    # Generate Expression Map
-    expression_map = generate_expression_map(entries)
-    with open("expression_map.expressionmap", "w", encoding="utf-8") as f:
-        f.write(expression_map)
+        # Generate Lua script
+        lua_script = generate_lua_script(instrument, entries)
+        with open(f"{instrument}.lua", "w") as f:
+            f.write(lua_script)
 
-    print("✅ Lua script and Expression Map generated!")
+        # Expression maps
+        expr_map_dir = generate_expression_map(instrument, entries, map_type="directional")
+        expr_map_attr = generate_expression_map(instrument, entries, map_type="attribute")
 
-# Call the script
+        with open(f"{instrument}_directional.expressionmap", "w", encoding="utf-8") as f:
+            f.write(expr_map_dir)
+
+        with open(f"{instrument}_attribute.expressionmap", "w", encoding="utf-8") as f:
+            f.write(expr_map_attr)
+
+    print("✅ All instrument scripts and expression maps generated!")
+
+# Usage
 if __name__ == "__main__":
-    folder_path = "path_to_your_vstsound_folder"  # CHANGE THIS
+    folder_path = "path_to_your_vstsound_folder"  # Replace this with your actual folder path
     main(folder_path)
-
