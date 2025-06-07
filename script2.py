@@ -3,15 +3,16 @@ import argparse
 import os
 
 INSTRUMENTS = [
-    "Violins 1", "Violins 2", "Violas", "Celli", "Basses",
+    "Violins I", "Violins II", "Violas", "Celli", "Basses",
     "Piccolo", "Flute 1", "Flute 2", "Oboe 1", "Oboe 2",
     "English Horn", "Clarinet 1", "Clarinet 2", "Bass Clarinet",
     "Bassoon 1", "Bassoon 2", "Contra Bassoon", "Horn", "Horns",
     "Trumpet", "Trumpets", "Trombone", "Trombones", "Euphonium", "Tuba",
-    "Belltree", "Castanets", "Celesta", "Chimes", "Cowbells", "Crotales",
-    "Cymbals", "Glockenspiel", "Harp", "Harp Pres De",
-    "Marimba", "Piatti", "Snare 1", "Snare 2", "Snare 3", "Snare 4",
-    "Tambourines", "Timpani", "Toms", "Toms Timpani", "Triangles", "Vibraphone"
+    "Bell Tree", "Castanets", "Celesta", "Chimes", "Cowbells", "Crotales",
+    "Cymbal 18", "Cymbal 20", "Glockenspiel", "Harp", "Harp Pres De",
+    "Marimba", "Piatti", "Snare 1", "Snare 2", "Snare 3", "Snare 4", "Tam Tam",
+    "Tambourine 1", "Tambourine 2", "Timpani", "Toms", "Toms Timpani", "Triangle", "Vibraphone",
+    "Vibraslap", "Gran Cassa", "Temple Blocks", "Wood Blocks", "Xylophone", "Congas", "Bongos",
 ]
 
 AHK_TEMPLATE = """
@@ -50,6 +51,10 @@ Sleep(200)
 Send("{instrument}{{Enter}}")
 Sleep(500)
 
+; Get only matched results
+Click(2467, 250)
+Sleep(200)
+
 ; Select all results
 Click(2500, 358) ; Sort
 Sleep(200)
@@ -87,6 +92,10 @@ Sleep(200)
 Send("{{Enter}}")
 Sleep(200)
 Send("{{Enter}}")
+MouseMove(2530, 250)
+Sleep(200)
+Click(2530, 250)
+Sleep(200)
 """
 
 
